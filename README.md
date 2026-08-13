@@ -214,12 +214,6 @@ PROXY_URL=http://localhost:8080/api/data go run ./client/
 
 ---
 
-## Autor
-
-**Jorge Gabriel Moraes Romero** — SRE com 10 anos de experiência em TI, especialista em AWS, Kubernetes, Terraform e Observabilidade.
-
----
-
 ## Licença
 
 MIT License — use, modifique e compartilhe à vontade.
