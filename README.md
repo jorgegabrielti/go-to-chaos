@@ -63,9 +63,14 @@ O ambiente inicia sem nenhuma configuração de caos. Verifique que tudo funcion
 ```
 
 **Verificar o status atual do proxy:**
+
 ```bash
+# Linux / macOS
 curl http://localhost:8081/status
-# {"latency_ms":0,"error_probability":0,"tcp_hijack":false}
+```
+```powershell
+# Windows PowerShell
+Invoke-RestMethod http://localhost:8081/status
 ```
 
 ---
@@ -75,10 +80,18 @@ curl http://localhost:8081/status
 Injeta 2 segundos de latência. O cliente tem timeout de 1 segundo, então ele vai cancelar.
 
 **Ativar caos de latência:**
+
 ```bash
+# Linux / macOS
 curl -X POST http://localhost:8081/config \
   -H "Content-Type: application/json" \
   -d '{"latency_ms": 2000, "error_probability": 0, "tcp_hijack": false}'
+```
+```powershell
+# Windows PowerShell
+Invoke-RestMethod -Method Post -Uri "http://localhost:8081/config" `
+  -ContentType "application/json" `
+  -Body '{"latency_ms": 2000, "error_probability": 0, "tcp_hijack": false}'
 ```
 
 **Observar nos logs do proxy** (prova do cancelamento de contexto):
@@ -89,18 +102,27 @@ curl -X POST http://localhost:8081/config \
 
 **Observar nos logs do client:**
 ```
-[CLIENTE] ⌛ [TIMEOUT] Tentativa 1: O cliente atingiu o limite de 1s.
+[CLIENTE] ⚠️  [ERRO] Tentativa 1: context deadline exceeded (Client.Timeout exceeded)
 [CLIENTE] ⏳ Aguardando 200ms antes da tentativa 2/3...
-[CLIENTE] ⌛ [TIMEOUT] Tentativa 2: O cliente atingiu o limite de 1s.
+[CLIENTE] ⚠️  [ERRO] Tentativa 2: context deadline exceeded (Client.Timeout exceeded)
 [CLIENTE] ❌ Chamada #N FALHOU após 3 tentativa(s)
 ```
 
 > 💡 **O pulo do gato:** Sem o `select { case <-r.Context().Done() }`, a goroutine do proxy ficaria presa em `time.Sleep(2s)` consumindo memória mesmo após o cliente ir embora. Com o context, ela é liberada instantaneamente.
 
 **Desativar caos:**
+
 ```bash
+# Linux / macOS
 curl -X POST http://localhost:8081/config \
+  -H "Content-Type: application/json" \
   -d '{"latency_ms": 0, "error_probability": 0, "tcp_hijack": false}'
+```
+```powershell
+# Windows PowerShell
+Invoke-RestMethod -Method Post -Uri "http://localhost:8081/config" `
+  -ContentType "application/json" `
+  -Body '{"latency_ms": 0, "error_probability": 0, "tcp_hijack": false}'
 ```
 
 ---
@@ -110,10 +132,18 @@ curl -X POST http://localhost:8081/config \
 50% das requisições retornarão HTTP 503. O cliente tentará até 3 vezes antes de desistir.
 
 **Ativar caos de erro:**
+
 ```bash
+# Linux / macOS
 curl -X POST http://localhost:8081/config \
   -H "Content-Type: application/json" \
   -d '{"latency_ms": 0, "error_probability": 0.5, "tcp_hijack": false}'
+```
+```powershell
+# Windows PowerShell
+Invoke-RestMethod -Method Post -Uri "http://localhost:8081/config" `
+  -ContentType "application/json" `
+  -Body '{"latency_ms": 0, "error_probability": 0.5, "tcp_hijack": false}'
 ```
 
 **Observar nos logs do client:**
@@ -126,9 +156,18 @@ curl -X POST http://localhost:8081/config \
 > 💡 **Perguntas para refletir:** O seu serviço real tem um Circuit Breaker? Ao configurar `error_probability: 1.0` (100% de falha), o cliente faz 3 retries simultâneos — imagine 1.000 instâncias fazendo isso. Isso é um **Thundering Herd** contra o backend quando ele voltar!
 
 **Desativar caos:**
+
 ```bash
+# Linux / macOS
 curl -X POST http://localhost:8081/config \
+  -H "Content-Type: application/json" \
   -d '{"latency_ms": 0, "error_probability": 0, "tcp_hijack": false}'
+```
+```powershell
+# Windows PowerShell
+Invoke-RestMethod -Method Post -Uri "http://localhost:8081/config" `
+  -ContentType "application/json" `
+  -Body '{"latency_ms": 0, "error_probability": 0, "tcp_hijack": false}'
 ```
 
 ---
@@ -138,10 +177,18 @@ curl -X POST http://localhost:8081/config \
 O proxy fecha o socket TCP abruptamente. O cliente recebe `connection reset by peer` ou `EOF` sem nenhum cabeçalho HTTP.
 
 **Ativar TCP Hijack:**
+
 ```bash
+# Linux / macOS
 curl -X POST http://localhost:8081/config \
   -H "Content-Type: application/json" \
   -d '{"latency_ms": 0, "error_probability": 0, "tcp_hijack": true}'
+```
+```powershell
+# Windows PowerShell
+Invoke-RestMethod -Method Post -Uri "http://localhost:8081/config" `
+  -ContentType "application/json" `
+  -Body '{"latency_ms": 0, "error_probability": 0, "tcp_hijack": true}'
 ```
 
 **Observar nos logs do proxy:**
@@ -156,11 +203,21 @@ curl -X POST http://localhost:8081/config \
 [CLIENTE] ❌ Chamada #N FALHOU após 3 tentativa(s)
 ```
 
-**Desativar caos:**
+**Desativar caos (restaurar estado limpo):**
+
 ```bash
+# Linux / macOS
 curl -X POST http://localhost:8081/config \
+  -H "Content-Type: application/json" \
   -d '{"latency_ms": 0, "error_probability": 0, "tcp_hijack": false}'
 ```
+```powershell
+# Windows PowerShell
+Invoke-RestMethod -Method Post -Uri "http://localhost:8081/config" `
+  -ContentType "application/json" `
+  -Body '{"latency_ms": 0, "error_probability": 0, "tcp_hijack": false}'
+```
+
 
 ---
 
