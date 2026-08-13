@@ -50,7 +50,7 @@ func (cm *ChaosManager) Set(cfg ChaosConfig) {
 	cm.mu.Lock()
 	defer cm.mu.Unlock()
 	cm.config = cfg
-	log.Printf("[PROXY] ⚙️  Configuração de caos atualizada: latency=%dms | error=%.0f%% | hijack=%v",
+	log.Printf("[PROXY] Configuração de caos atualizada: latency=%dms | error=%.0f%% | hijack=%v",
 		cfg.LatencyMs, cfg.ErrorProbability*100, cfg.TCPHijack)
 }
 
@@ -62,7 +62,7 @@ func main() {
 	// URL do backend de destino
 	targetURL, err := url.Parse("http://backend:3000")
 	if err != nil {
-		log.Fatalf("[PROXY] ❌ URL do backend inválida: %v", err)
+		log.Fatalf("[PROXY] URL do backend inválida: %v", err)
 	}
 
 	manager := &ChaosManager{}
@@ -120,9 +120,9 @@ func startAdminServer(manager *ChaosManager) {
 	})
 
 	addr := ":8081"
-	log.Printf("[PROXY] 🔧 API Admin iniciada na porta %s", addr)
+	log.Printf("[PROXY] API Admin iniciada na porta %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatalf("[PROXY] ❌ Falha na API Admin: %v", err)
+		log.Fatalf("[PROXY] Falha na API Admin: %v", err)
 	}
 }
 
@@ -145,7 +145,7 @@ func startProxyServer(targetURL *url.URL, manager *ChaosManager) {
 
 	// ErrorHandler: Tratamento de erros de conexão com o backend.
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-		log.Printf("[PROXY] ❌ Erro de conexão com o backend: %v", err)
+		log.Printf("[PROXY] Erro de conexão com o backend: %v", err)
 		w.WriteHeader(http.StatusBadGateway)
 		fmt.Fprintf(w, `{"error":"Backend indisponível","detail":"%v"}`, err)
 	}
@@ -154,9 +154,9 @@ func startProxyServer(targetURL *url.URL, manager *ChaosManager) {
 	mux.HandleFunc("/", chaosMiddleware(proxy, manager))
 
 	addr := ":8080"
-	log.Printf("[PROXY] 🌀 Chaos Proxy iniciado na porta %s → Backend: %s", addr, targetURL)
+	log.Printf("[PROXY] Chaos Proxy iniciado na porta %s → Backend: %s", addr, targetURL)
 	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatalf("[PROXY] ❌ Falha no Proxy: %v", err)
+		log.Fatalf("[PROXY] Falha no Proxy: %v", err)
 	}
 }
 
@@ -171,24 +171,24 @@ func chaosMiddleware(next http.Handler, manager *ChaosManager) http.HandlerFunc 
 		cfg := manager.Get()
 		clientIP := r.RemoteAddr
 
-		log.Printf("[PROXY] 📥 Requisição recebida — %s %s | IP: %s", r.Method, r.URL.Path, clientIP)
+		log.Printf("[PROXY] Requisição recebida — %s %s | IP: %s", r.Method, r.URL.Path, clientIP)
 
 		// ─────────────────────────────────────────────────────────
 		// MODO 1: HIJACK TCP — Fecha a conexão abruptamente
 		// ─────────────────────────────────────────────────────────
 		if cfg.TCPHijack {
-			log.Printf("[PROXY] 💀 [CAOS] TCP Hijack ativo — encerrando conexão de %s abruptamente!", clientIP)
+			log.Printf("[PROXY] [CAOS] TCP Hijack ativo — encerrando conexão de %s abruptamente!", clientIP)
 
 			hijacker, ok := w.(http.Hijacker)
 			if !ok {
-				log.Printf("[PROXY] ⚠️  Hijack não suportado pelo servidor HTTP atual.")
+				log.Printf("[PROXY] Hijack não suportado pelo servidor HTTP atual.")
 				http.Error(w, "Hijack não suportado", http.StatusInternalServerError)
 				return
 			}
 
 			conn, _, err := hijacker.Hijack()
 			if err != nil {
-				log.Printf("[PROXY] ❌ Erro ao fazer hijack da conexão: %v", err)
+				log.Printf("[PROXY] Erro ao fazer hijack da conexão: %v", err)
 				return
 			}
 			// Fecha o socket TCP raw — o cliente recebe "connection reset by peer"
@@ -200,7 +200,7 @@ func chaosMiddleware(next http.Handler, manager *ChaosManager) http.HandlerFunc 
 		// MODO 2: INJEÇÃO DE ERRO HTTP — Curto-circuito sem atingir o backend
 		// ─────────────────────────────────────────────────────────
 		if cfg.ErrorProbability > 0 && rand.Float64() < cfg.ErrorProbability {
-			log.Printf("[PROXY] 🔥 [CAOS] Erro injetado (prob=%.0f%%) — retornando HTTP 503 para %s",
+			log.Printf("[PROXY] [CAOS] Erro injetado (prob=%.0f%%) — retornando HTTP 503 para %s",
 				cfg.ErrorProbability*100, clientIP)
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("X-Chaos-Mode", "error-injection")
@@ -215,18 +215,18 @@ func chaosMiddleware(next http.Handler, manager *ChaosManager) http.HandlerFunc 
 		// ─────────────────────────────────────────────────────────
 		if cfg.LatencyMs > 0 {
 			delay := time.Duration(cfg.LatencyMs) * time.Millisecond
-			log.Printf("[PROXY] ⏳ [CAOS] Injetando latência de %v para %s...", delay, clientIP)
+			log.Printf("[PROXY] [CAOS] Injetando latência de %v para %s...", delay, clientIP)
 
 			select {
 			case <-time.After(delay):
 				// Delay concluído normalmente — a requisição segue para o backend.
-				log.Printf("[PROXY] ⏱️  Latência de %v concluída. Encaminhando para o backend.", delay)
+				log.Printf("[PROXY] Latência de %v concluída. Encaminhando para o backend.", delay)
 
 			case <-r.Context().Done():
 				// O CLIENTE DESISTIU ANTES DO DELAY TERMINAR!
 				// Isso é o uso correto de context.Context em Go:
 				// paramos o sleep imediatamente, liberando a goroutine e a memória.
-				log.Printf("[PROXY] 🛑 [CONTEXTO] Cliente %s cancelou a requisição durante o delay! Goroutine liberada.", clientIP)
+				log.Printf("[PROXY] [CONTEXTO] Cliente %s cancelou a requisição durante o delay! Goroutine liberada.", clientIP)
 				return
 			}
 		}
@@ -234,7 +234,7 @@ func chaosMiddleware(next http.Handler, manager *ChaosManager) http.HandlerFunc 
 		// ─────────────────────────────────────────────────────────
 		// FLUXO NORMAL — Encaminha para o backend via proxy reverso
 		// ─────────────────────────────────────────────────────────
-		log.Printf("[PROXY] ➡️  Encaminhando requisição de %s para o backend...", clientIP)
+		log.Printf("[PROXY] Encaminhando requisição de %s para o backend...", clientIP)
 		next.ServeHTTP(w, r)
 	}
 }

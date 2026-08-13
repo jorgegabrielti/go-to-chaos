@@ -7,6 +7,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -47,8 +48,8 @@ func main() {
 		target = envURL
 	}
 
-	log.Printf("[CLIENTE] 🚀 Iniciando cliente resiliente → Target: %s", target)
-	log.Printf("[CLIENTE] ⚙️  Timeout: %v | MaxRetries: %d | Intervalo: %v",
+	log.Printf("[CLIENTE] Iniciando cliente resiliente → Target: %s", target)
+	log.Printf("[CLIENTE] Timeout: %v | MaxRetries: %d | Intervalo: %v",
 		clientTimeout, maxRetries, requestInterval)
 
 	// Loop principal: faz uma requisição a cada requestInterval
@@ -56,15 +57,15 @@ func main() {
 	for {
 		contador++
 		log.Printf("[CLIENTE] ─────────────────────────────────────────────")
-		log.Printf("[CLIENTE] 🔄 Iniciando chamada #%d...", contador)
+		log.Printf("[CLIENTE] Iniciando chamada #%d...", contador)
 
 		resultado, tentativas, err := fazerRequisicaoComRetry(client, target)
 
 		if err != nil {
-			log.Printf("[CLIENTE] ❌ Chamada #%d FALHOU após %d tentativa(s): %v",
+			log.Printf("[CLIENTE] Chamada #%d FALHOU após %d tentativa(s): %v",
 				contador, tentativas, err)
 		} else {
-			log.Printf("[CLIENTE] ✅ Chamada #%d BEM-SUCEDIDA na tentativa %d/%d → Resposta: %s",
+			log.Printf("[CLIENTE] Chamada #%d BEM-SUCEDIDA na tentativa %d/%d → Resposta: %s",
 				contador, tentativas, maxRetries, resultado)
 		}
 
@@ -79,7 +80,7 @@ func fazerRequisicaoComRetry(client *http.Client, url string) (string, int, erro
 
 	for tentativa := 1; tentativa <= maxRetries; tentativa++ {
 		if tentativa > 1 {
-			log.Printf("[CLIENTE] ⏳ Aguardando %v antes da tentativa %d/%d...",
+			log.Printf("[CLIENTE] Aguardando %v antes da tentativa %d/%d...",
 				retryDelay, tentativa, maxRetries)
 			time.Sleep(retryDelay)
 		}
@@ -125,7 +126,7 @@ func fazerRequisicao(client *http.Client, url string, tentativa int) (string, er
 		return "", fmt.Errorf("erro ao ler resposta (tentativa %d): %w", tentativa, err)
 	}
 
-	log.Printf("[CLIENTE] ⚡ Requisição concluída em %v", duracao)
+	log.Printf("[CLIENTE] Requisição concluída em %v", duracao)
 	return string(corpo), nil
 }
 
@@ -137,37 +138,33 @@ func classificarErro(err error, tentativa int) {
 
 	switch {
 	case isTimeout(err):
-		log.Printf("[CLIENTE] ⌛ [TIMEOUT] Tentativa %d: O cliente atingiu o limite de %v. "+
+		log.Printf("[CLIENTE] [TIMEOUT] Tentativa %d: O cliente atingiu o limite de %v. "+
 			"O Chaos Proxy estava injetando latência maior que o timeout configurado.",
 			tentativa, clientTimeout)
 	case contains(errStr, "connection reset by peer"), contains(errStr, "EOF"):
-		log.Printf("[CLIENTE] 💀 [TCP RESET] Tentativa %d: Conexão abortada abruptamente pelo proxy. "+
+		log.Printf("[CLIENTE] [TCP RESET] Tentativa %d: Conexão abortada abruptamente pelo proxy. "+
 			"Isso é o modo TCP Hijack em ação!",
 			tentativa)
 	case contains(errStr, "connection refused"):
-		log.Printf("[CLIENTE] 🔌 [CONN REFUSED] Tentativa %d: Proxy offline ou porta errada.",
+		log.Printf("[CLIENTE] [CONN REFUSED] Tentativa %d: Proxy offline ou porta errada.",
 			tentativa)
 	default:
-		log.Printf("[CLIENTE] ⚠️  [ERRO] Tentativa %d: %v", tentativa, err)
+		log.Printf("[CLIENTE] [ERRO] Tentativa %d: %v", tentativa, err)
 	}
 }
 
 // isTimeout verifica se um erro é do tipo timeout de rede.
+// Como fazerRequisicao embrulha o erro original com fmt.Errorf("...: %w", err),
+// é preciso percorrer a cadeia de erros (errors.Unwrap) até achar o erro
+// concreto (*url.Error) que implementa a interface Timeout() bool.
 func isTimeout(err error) bool {
 	type timeoutError interface {
 		Timeout() bool
 	}
-	if te, ok := err.(timeoutError); ok {
-		return te.Timeout()
-	}
-	// Verifica o erro embrulhado (wrapped) em cadeia
-	unwrapped := err
-	for unwrapped != nil {
-		if te, ok := unwrapped.(timeoutError); ok && te.Timeout() {
-			return true
+	for unwrapped := err; unwrapped != nil; unwrapped = errors.Unwrap(unwrapped) {
+		if te, ok := unwrapped.(timeoutError); ok {
+			return te.Timeout()
 		}
-		unwrapped = fmt.Errorf("%w", unwrapped)
-		break
 	}
 	return false
 }

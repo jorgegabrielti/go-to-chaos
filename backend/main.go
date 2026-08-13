@@ -23,16 +23,16 @@ func main() {
 	mux.HandleFunc("/health", handleHealth)
 
 	addr := ":3000"
-	log.Printf("[BACKEND] 🚀 Servidor iniciado na porta %s", addr)
+	log.Printf("[BACKEND] Servidor iniciado na porta %s", addr)
 
 	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatalf("[BACKEND] ❌ Falha ao iniciar servidor: %v", err)
+		log.Fatalf("[BACKEND] Falha ao iniciar servidor: %v", err)
 	}
 }
 
 // handleData processa requisições ao endpoint principal de dados.
 func handleData(w http.ResponseWriter, r *http.Request) {
-	log.Printf("[BACKEND] ✅ Requisição recebida — Método: %s | IP: %s | Hora: %s",
+	log.Printf("[BACKEND] Requisição recebida — Método: %s | IP: %s | Hora: %s",
 		r.Method, r.RemoteAddr, time.Now().Format("15:04:05.000"))
 
 	resp := Response{
@@ -45,7 +45,7 @@ func handleData(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		log.Printf("[BACKEND] ❌ Erro ao serializar resposta: %v", err)
+		log.Printf("[BACKEND] Erro ao serializar resposta: %v", err)
 	}
 }
 
