@@ -1,0 +1,65 @@
+services:
+  # ─────────────────────────────────────────────────────────────────
+  # BACKEND: API alvo que simula o serviço real de produção.
+  # ─────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: gtc-backend
+    ports:
+      - "3000:3000"
+    networks:
+      - chaos-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/health || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────
+  # PROXY: O Chaos Proxy com API de controle de caos.
+  #   Porta 8080 → Tráfego de proxy (cliente → backend)
+  #   Porta 8081 → API Admin (controle do caos em tempo real)
+  # ─────────────────────────────────────────────────────────────────
+  proxy:
+    build:
+      context: .
+      dockerfile: proxy/Dockerfile
+    container_name: gtc-proxy
+    ports:
+      - "8080:8080"   # Tráfego principal
+      - "8081:8081"   # API de controle de caos
+    networks:
+      - chaos-net
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ─────────────────────────────────────────────────────────────────
+  # CLIENT: Cliente resiliente que faz requisições em loop.
+  # Observe os logs em tempo real com: docker compose logs -f client
+  # ─────────────────────────────────────────────────────────────────
+  client:
+    build:
+      context: .
+      dockerfile: client/Dockerfile
+    container_name: gtc-client
+    environment:
+      - PROXY_URL=http://proxy:8080/api/data
+    networks:
+      - chaos-net
+    depends_on:
+      - proxy
+    restart: unless-stopped
+
+# ─────────────────────────────────────────────────────────────────
+# REDE INTERNA: Isolamento de rede para os serviços do laboratório.
+# ─────────────────────────────────────────────────────────────────
+networks:
+  chaos-net:
+    driver: bridge
+    name: go-to-chaos-network

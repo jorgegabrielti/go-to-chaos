@@ -1,0 +1,40 @@
+# Binários compilados
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+backend/backend
+proxy/proxy
+client/client
+go-to-chaos-*
+
+# Arquivos de teste
+*.test
+*.out
+
+# Diretórios de build
+bin/
+dist/
+
+# Módulos Go (manter go.sum)
+vendor/
+
+# Arquivos gerados em tempo de execução pelo laboratório
+erros.log
+lista_de_compras.txt
+
+# Logs e coverage
+*.log
+coverage.html
+coverage.out
+
+# Arquivos de IDE e editores
+.idea/
+.vscode/
+*.swp
+*.swo
+*.DS_Store
+
+# Docker
+.docker/
